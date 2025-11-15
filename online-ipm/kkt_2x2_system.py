@@ -66,6 +66,7 @@ class KKT2x2Solver:
         We eliminate ds using: ds = -X^{-1}(S dx + rc)
         
         Substituting into the first equation:
+        A^T dy + ds = rd
         A^T dy + (-X^{-1}(S dx + rc)) = rd
         A^T dy - X^{-1}S dx = rd + X^{-1}rc
         
@@ -84,9 +85,13 @@ class KKT2x2Solver:
             K2x2: 2x2 KKT matrix
             rhs2x2: Modified right-hand side
         """
+        # Ensure numerical stability
+        x_safe = np.maximum(np.abs(x), 1e-12)
+        s_safe = np.maximum(np.abs(s), 1e-12)
+        
         # Form the 2x2 blocks
         # Top-left: -X^{-1}S = -diag(s/x)
-        XinvS = -diags(s / x, format='csc')
+        XinvS = -diags(s_safe / x_safe, format='csc')
         
         # Top-right: A^T
         AT = self.A.T
@@ -102,8 +107,8 @@ class KKT2x2Solver:
         bottom_row = hstack([A, zeros_mm])
         K2x2 = vstack([top_row, bottom_row])
         
-        # Modified right-hand side
-        rhs_top = rd + (rc / x)  # rd + X^{-1}rc
+        # Modified right-hand side with numerical stability
+        rhs_top = rd + (rc / x_safe)  # rd + X^{-1}rc
         rhs_bottom = rp
         rhs2x2 = np.concatenate([rhs_top, rhs_bottom])
         
@@ -145,7 +150,8 @@ class KKT2x2Solver:
         Returns:
             ds: Dual slack step
         """
-        return -(s * dx + rc) / x
+        x_safe = np.maximum(np.abs(x), 1e-12)
+        return -(s * dx + rc) / x_safe
     
     def solve_step(self, x: np.ndarray, s: np.ndarray, y: np.ndarray, 
                    c: np.ndarray, b: np.ndarray, mu: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -217,23 +223,42 @@ class OnlineIPM:
         if x0 is None:
             # Find feasible starting point
             if self.m > 0:
-                x0 = np.linalg.lstsq(self.A, b, rcond=None)[0]
-                x0 = np.maximum(x0, 0.1)
+                # Use a more robust initialization
+                try:
+                    x0 = np.linalg.lstsq(self.A, b, rcond=None)[0]
+                    x0 = np.maximum(x0, 1.0)  # Larger initial values for stability
+                except:
+                    x0 = np.ones(self.n)
                 
-                # Re-project to satisfy Ax = b
+                # Ensure strict feasibility
                 residual = b - self.A @ x0
-                AtA_inv = np.linalg.pinv(self.A @ self.A.T)
-                correction = self.A.T @ AtA_inv @ residual
-                x0 = x0 + correction
-                x0 = np.maximum(x0, 0.01)
+                if np.linalg.norm(residual) > 1e-10:
+                    try:
+                        AtA_inv = np.linalg.pinv(self.A @ self.A.T)
+                        correction = self.A.T @ AtA_inv @ residual
+                        x0 = x0 + correction
+                    except:
+                        pass
+                x0 = np.maximum(x0, 1.0)
             else:
-                x0 = np.ones(self.n) * 0.1
+                x0 = np.ones(self.n)
         
         self.x = x0
-        self.y = np.zeros(self.m)
-        self.s = np.maximum(self.c - self.A.T @ self.y, 0.1)
         
-    def solve_one_step(self, b: np.ndarray, max_inner_iter: int = 10, tol: float = 1e-6) -> Dict[str, Any]:
+        # Better dual initialization - solve least squares problem
+        # min ||A^T y - c||^2 subject to y
+        try:
+            self.y = np.linalg.lstsq(self.A.T, self.c, rcond=None)[0]
+        except:
+            self.y = np.zeros(self.m)
+        
+        # Initialize slack variables to maintain complementarity
+        self.s = np.maximum(self.c - self.A.T @ self.y, 1.0)
+        
+        # Reset barrier parameter
+        self.mu = 1.0
+        
+    def solve_one_step(self, b: np.ndarray, max_inner_iter: int = 20, tol: float = 1e-6) -> Dict[str, Any]:
         """
         Solve for new b using warm start from previous solution.
         
@@ -250,28 +275,45 @@ class OnlineIPM:
             
         start_time = time.time()
         
+        # Adaptive barrier parameter update
+        gap = np.dot(self.x, self.s)
+        if gap < 1e-3:
+            self.mu = max(gap * 0.1, 1e-8)
+        else:
+            self.mu = max(gap * 0.2, 1e-6)
+        
         for iter_count in range(max_inner_iter):
             # Solve Newton step using 2x2 system
             dx, dy, ds = self.kkt_solver.solve_step(self.x, self.s, self.y, self.c, b, self.mu)
             
-            # Compute step sizes
+            # Compute step sizes with more conservative approach
             alpha_p = 1.0
             alpha_d = 1.0
             
             # Primal step size
             neg_indices = dx < 0
             if np.any(neg_indices):
-                alpha_p = min(0.99 * np.min(-self.x[neg_indices] / dx[neg_indices]), 1.0)
+                ratios = -self.x[neg_indices] / dx[neg_indices]
+                alpha_p = min(0.95 * np.min(ratios), 1.0)
             
-            # Dual step size
+            # Dual step size  
             neg_indices = ds < 0
             if np.any(neg_indices):
-                alpha_d = min(0.99 * np.min(-self.s[neg_indices] / ds[neg_indices]), 1.0)
+                ratios = -self.s[neg_indices] / ds[neg_indices]
+                alpha_d = min(0.95 * np.min(ratios), 1.0)
+            
+            # Additional damping for stability
+            alpha_p = min(alpha_p, 0.9)
+            alpha_d = min(alpha_d, 0.9)
             
             # Update variables
             x_new = self.x + alpha_p * dx
             y_new = self.y + alpha_d * dy
             s_new = self.s + alpha_d * ds
+            
+            # Ensure positivity
+            x_new = np.maximum(x_new, 1e-10)
+            s_new = np.maximum(s_new, 1e-10)
             
             # Check convergence
             gap = np.dot(x_new, s_new)
@@ -296,8 +338,9 @@ class OnlineIPM:
             # Update state
             self.x, self.y, self.s = x_new, y_new, s_new
             
-            # Update barrier parameter
-            self.mu *= 0.5
+            # More conservative barrier parameter update
+            sigma = 0.1  # Centering parameter
+            self.mu = sigma * gap / self.n
         
         solve_time = time.time() - start_time
         return {

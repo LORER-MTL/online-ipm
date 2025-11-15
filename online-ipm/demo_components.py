@@ -42,6 +42,8 @@ def demo_key_components():
     # Extract problem data
     data, _, _ = prob.get_problem_data(solver=cp.CLARABEL)
     print("Available data keys:", list(data.keys()))
+    print(prob.solve(solver=cp.CLARABEL))
+    print(f"Optimal x: {x.value}")
     
     # 3. KKT SYSTEM FORMATION
     print("\n3. KKT SYSTEM FOR PRIMAL-BARRIER METHOD")

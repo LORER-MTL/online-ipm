@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "online-ipm"
+version = "0.1.0"
+description = "Python implementation of online interior point methods with warm-starting"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Your Name", email = "your.email@example.com"}
+]
+keywords = ["optimization", "interior-point", "linear-programming", "warm-starting"]
+
+dependencies = [
+    "numpy>=2.0.0",
+    "scipy>=1.13.0",
+    "cvxpy>=1.7.0",
+    "qdldl>=0.1.5",
+]
