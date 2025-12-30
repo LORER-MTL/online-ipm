@@ -193,7 +193,10 @@ for any non-zero vector $\mathbf{v}\in\RR^N$. \textcolor{Blue}{This definition o
 \textcolor{Blue}{Here the logarithm is either the natural logarithm if $g_i$ is a scalar function or a generalized logarithm as defined in~\cite[Section 11.6]{boyd}. This barrier functional is convex and self-concordant over its domain~\cite{renegar}}.
 
 
-Interior-point methods do not attempt to solve \eqref{prob1} directly. Instead, a sequence of convex optimization problems related to the original problem are solved. This is achieved in the following way. Let $\nn\in \mathbb{R}^+$ be a positive barrier parameter. This barrier parameter is useful in defining the following equality-constrained problem:
+Interior-point methods do not attempt to solve \eqref{prob1} directly. Instead, a sequence of convex optimization problems related to the original problem are solved.
+\WZZsuggestion{Although this is correct, I think it would be more precise to say:
+"a sequence of equality-constrained quadratic minimization problems related to [...]"}
+This is achieved in the following way. Let $\nn\in \mathbb{R}^+$ be a positive barrier parameter. This barrier parameter is useful in defining the following equality-constrained problem:
 \begin{align}\label{prob2}\begin{split}\min_{\xx_t}\quad &\nn\cc^\top\xx_t+\phi(\xx_t)\\
 \text{s.t.} \quad& \AA \xx_t - \bb_t = \mathbf{0}.
 \end{split}
