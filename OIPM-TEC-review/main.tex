@@ -332,7 +332,22 @@ We now present a sequence of lemmas that will later be used to to prove our main
     \end{align*}
     where the last inequality follows from \eqref{def:selfconcordance}.
 \end{proof}
+\WZZ{the first equality is false. you cannot invert the matrix inside the norm with equality.}
 
+\WZZ{the second equality is also not clear. where did the norms square appear from?
+If you were doing the operator norm expansion of a matrix then it should have a sup, not a min.
+For matrices, it is defined as the square root of the largest singular value, scaled by the hessian matrix.}
+
+\WZZ{the third line is also not clear to me. you replaced min. by sup. and swapped the order of the two terms in the fraction.
+this relationship is not correct. I think in general we can only guarantee that 
+min (a/b) = 1 / max (b/a), but not that min(a/b) $\leq$ max(b/a).
+I read \cite[\S 2.2.3]{renegar} (which I assume is what you are referring to) 
+but renegar uses a fixed vector v to get the inequality, and the min. is over
+the indices of barrier functionals ($i.e. f_1, f_2$) in a summation, not over the direction v.}
+
+\WZZsuggestion{I would suggest to say "where the last inequality follows from 
+squaring both sides of \eqref{def:selfconcordance}" at the end of your proof
+to more precisely describe what you are doing.}
 %\begin{lemma}
  %   If $\exists m \in \mathbb{R}$ such that $\norm{\nabla^2\phi(\xx)^-1}\le \frac{1}{m}$, for all $\xx\in \Df$, then,
   %  \[\norm{\DD^{-1}(\yy)} \le \frac{1}{m}\quad \forall \yy \quad\text{\normalfont s.t. } \xx\in \Df.\]

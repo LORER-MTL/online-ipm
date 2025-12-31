@@ -9,7 +9,7 @@ This document analyzes critical errors found in multiple proofs in the paper. Th
 
 ---
 
-# Part 1: Errors in Lemma invHess (Lines 310-326)
+# Part 1: Errors in Lemma invHess (Lines 325-335)
 
 ## Overview
 
@@ -22,22 +22,24 @@ This lemma is used throughout the paper, including in the proof of Lemma nred. H
 
 ---
 
-## Error 1: False Equality (Line 321) - **CRITICAL**
+## Error 1: False Equality (Line 328) - **CRITICAL**
 
 ### The Claim
 ```latex
 ‖D(y₁)D⁻¹(y₂)‖_{D(y₁)} = ‖(D(y₁)D⁻¹(y₂))⁻¹‖_{D(y₁)}
 ```
 
-This claims that a matrix and its inverse have the **same operator norm**.
+This claims that a matrix and its inverse have the **same Hessian-induced operator norm**.
 
 ### Why This is False
 
-For operator norms, we have **‖M‖ · ‖M⁻¹‖ ≥ 1**, with equality only when M is an isometry.
+The notation ‖M‖_{D(y₁)} denotes the induced operator norm with respect to the Hessian norm ‖v‖_{D(y₁)} = √(vᵀD(y₁)v).
 
-**Counterexample:** If ‖M‖ = 2, then typically ‖M⁻¹‖ = 1/2 ≠ 2.
+For any induced operator norm (including Hessian-induced norms), we have **‖M‖ · ‖M⁻¹‖ ≥ 1**, with equality only when M is an isometry in that norm.
 
-The equality **‖M‖_{D(y₁)} = ‖M⁻¹‖_{D(y₁)}** does NOT hold for general matrices or operator norms.
+**Counterexample:** If ‖M‖_{D(y₁)} = 2, then typically ‖M⁻¹‖_{D(y₁)} = 1/2 ≠ 2.
+
+The equality **‖M‖_{D(y₁)} = ‖M⁻¹‖_{D(y₁)}** does NOT hold for general matrices, regardless of whether we use Euclidean or Hessian-induced norms.
 
 ### What This Means
 
@@ -45,7 +47,50 @@ The entire first line of the proof is **mathematically incorrect**. You cannot "
 
 ---
 
-## Error 2: Unjustified Transition from Min to Sup (Line 322-323)
+## Error 1b: False Second Equality (Line 329) - **CRITICAL**
+
+### The Claim
+```latex
+‖(D(y₁)D⁻¹(y₂))⁻¹‖_{D(y₁)} = min_{v≠0} ‖v‖²_{D(y₁)} / (vᵀD(y₂)v)
+```
+
+This claims that the induced operator norm of a matrix inverse (in the Hessian norm) equals a minimum generalized Rayleigh quotient.
+
+### Notation Clarification
+
+The notation ‖·‖_{D(y₁)} denotes the Hessian-induced norm:
+- For vectors: ‖v‖_{D(y₁)} = √(vᵀD(y₁)v)
+- For matrices: ‖M‖_{D(y₁)} is the induced operator norm with respect to this Hessian norm
+
+### Why This is False
+
+**Left side:** The Hessian-induced operator norm of M⁻¹ (where M = D(y₁)D⁻¹(y₂)):
+```
+‖M⁻¹‖_{D(y₁)} = sup_{v≠0} ‖M⁻¹v‖_{D(y₁)} / ‖v‖_{D(y₁)}
+                = sup_{v≠0} √[(M⁻¹v)ᵀD(y₁)(M⁻¹v)] / √[vᵀD(y₁)v]
+                = √[λ_max(M⁻ᵀD(y₁)M⁻¹, D(y₁))]
+```
+
+This is a **supremum** measuring how much the linear transformation M⁻¹ can stretch vectors in the D(y₁)-norm. It equals the square root of the maximum generalized eigenvalue.
+
+**Right side:** The minimum generalized Rayleigh quotient:
+```
+min_{v≠0} (vᵀD(y₁)v) / (vᵀD(y₂)v) = λ_min(D(y₁), D(y₂))
+```
+
+This is the **minimum** eigenvalue of the matrix pencil, comparing two quadratic forms directly.
+
+### The Fundamental Issue
+
+Even though both sides involve the Hessian norm D(y₁), these are **completely different mathematical objects**:
+- The operator norm ‖M⁻¹‖_{D(y₁)} involves **applying the linear transformation** M⁻¹ to vectors, then measuring their D(y₁)-norm
+- The Rayleigh quotient min (vᵀD(y₁)v)/(vᵀD(y₂)v) is just a **ratio of two quadratic forms** without any matrix transformation applied to v
+
+The equality cannot hold. This is a fundamental conceptual error, conflating induced operator norms (which involve matrix-vector products) with Rayleigh quotients (which are purely scalar ratios of quadratic forms).
+
+---
+
+## Error 2: Unjustified Transition from Min to Sup (Line 329-330)
 
 ### The Claim
 ```latex
@@ -54,14 +99,14 @@ min_{v≠0} ‖v‖²_{D(y₁)} / (vᵀD(y₁)D⁻¹(y₁)D(y₂)v) ≤ sup_{v�
 
 ### The Issue
 
-Line 322 correctly simplifies: vᵀD(y₁)D⁻¹(y₁)D(y₂)v = vᵀD(y₂)v
+Line 329 correctly simplifies: vᵀD(y₁)D⁻¹(y₁)D(y₂)v = vᵀD(y₂)v
 
 So we have:
 ```
 min_{v≠0} (vᵀD(y₁)v) / (vᵀD(y₂)v)
 ```
 
-But then line 323 claims this relates to:
+But then line 330 claims this relates to:
 ```
 sup_{v≠0} (vᵀD(y₂)v) / (vᵀD(y₁)v)
 ```
