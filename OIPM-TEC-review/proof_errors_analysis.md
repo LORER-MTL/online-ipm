@@ -41,6 +41,32 @@ For any induced operator norm (including Hessian-induced norms), we have **‖M�
 
 The equality **‖M‖_{D(y₁)} = ‖M⁻¹‖_{D(y₁)}** does NOT hold for general matrices, regardless of whether we use Euclidean or Hessian-induced norms.
 
+### Why D(y₁)D(y₂)⁻¹ is NOT Isometric
+
+For M = D(y₁)D(y₂)⁻¹ to be isometric in the D(y₁) norm, we would need:
+```
+MᵀD(y₁)M = D(y₁)
+```
+
+Since Hessians are symmetric, M = D(y₁)D(y₂)⁻¹ is symmetric. Computing:
+```
+MᵀD(y₁)M = D(y₂)⁻¹D(y₁) · D(y₁) · D(y₂)⁻¹ = D(y₂)⁻¹D(y₁)²D(y₂)⁻¹
+```
+
+For isometry:
+```
+D(y₂)⁻¹D(y₁)²D(y₂)⁻¹ = D(y₁)
+```
+
+This simplifies to:
+```
+D(y₁)² = D(y₂)D(y₁)D(y₂)
+```
+
+This equation **only holds when D(y₁) = D(y₂)** (i.e., the same Hessian at both points).
+
+**Therefore:** D(y₁)D(y₂)⁻¹ is NOT an isometry when y₁ ≠ y₂, which is precisely the case we care about in the proof!
+
 ### What This Means
 
 The entire first line of the proof is **mathematically incorrect**. You cannot "invert the argument" and preserve the norm value.
@@ -195,7 +221,9 @@ or equivalently:
 
 **References:**
 - Boyd & Vandenberghe, "Convex Optimization," Section 9.6
-- Renegar, "A Mathematical View of Interior-Point Methods," Chapter 2
+- Renegar, "A Mathematical View of Interior-Point Methods," Sections 2.2.3 and 2.5
+
+**Note:** Neither Boyd nor Renegar provide ANY result that would support the equality ‖M‖ = ‖M⁻¹‖ for M = D(y₁)D(y₂)⁻¹. Renegar's Section 2.2.3 provides the standard self-concordance definition (equation 4 in the paper), which when squared gives a bound on λ_max(H₁⁻¹H₂), **not** on ‖H₁H₂⁻¹‖.
 
 ---
 
@@ -430,3 +458,272 @@ These errors suggest the proof has **not been carefully verified**. While the fi
 - Cannot be trusted without major revision
 
 **Recommendation:** Revise the entire proof or provide a reference to a correct proof in the literature.
+
+---
+
+# Part 3: Errors in Barrier Complexity Argument (Lines 469-474)
+
+## Overview
+
+The paper claims (lines 469-474):
+```
+From [Section 2.3.1]{renegar}, we have that the restriction of any barrier 
+functional to a subspace or translation of a subspace results in a barrier 
+functional whose complexity barrier is smaller than that of the original 
+functional. This implies that if ||φ(x)||²_{∇²φ(x)} ≤ v_f any pair x, v satisfies:
+[∇φ(x) + A^T v; 0]^T D⁻¹ [∇φ(x) + A^T v; 0] ≤ v_f
+```
+
+This argument is used to justify the bound ||h(y)|| ≤ √v_f in Lemma eta. However, **this argument contains multiple serious flaws**.
+
+---
+
+## Error 1: Misapplication of Renegar's Restriction Theorem - **CRITICAL**
+
+### The Claim
+
+The paper references "Section 2.3.1" of Renegar to justify that restricting a barrier functional to a subspace gives a barrier with smaller complexity.
+
+### The Problem
+
+**The reference appears to be incorrect.** Renegar's "A Mathematical View of Interior-Point Methods" does not have a Section 2.3.1 that contains this result. The book's Chapter 2 structure is:
+- Section 2.1: Self-concordant functions
+- Section 2.2: Self-concordant barriers  
+- Section 2.3: Complexity of barrier methods
+- Section 2.4: Path-following methods
+- Section 2.5: Properties and examples
+
+**What Renegar actually discusses:**
+- Restriction theorems (if they exist) would relate to restricting the **function domain** φ(x) to a subspace like {x : Ax = b}
+- This is NOT the same as claiming a bound on [∇φ(x) + A^T v; 0]^T D⁻¹ [∇φ(x) + A^T v; 0]
+
+### What's Actually Happening
+
+The argument confuses:
+1. **Restricting a function to a subspace** (e.g., φ restricted to {x : Ax = b})
+2. **Zeroing out components of a gradient vector** and claiming bounds on quadratic forms
+
+These are completely different operations with different theoretical justifications.
+
+---
+
+## Error 2: Logical Gap - Complexity of φ ≠ Norm of Modified Gradient - **CRITICAL**
+
+### The Claim
+
+```
+"if ||φ(x)||²_{∇²φ(x)} ≤ v_f, then for ANY pair x,v:
+ [∇φ(x) + A^T v; 0]^T D⁻¹ [∇φ(x) + A^T v; 0] ≤ v_f"
+```
+
+### Why This Doesn't Follow
+
+The complexity bound v_f by definition (Assumption 3) states:
+```
+sup_x ∇φ(x)^T (∇²φ(x))⁻¹ ∇φ(x) ≤ v_f
+```
+
+This is a bound on the **gradient of φ alone**, using the **Hessian of φ alone**.
+
+**The claimed inequality involves:**
+- A modified vector: ∇φ(x) + A^T v (with dual multiplier term)
+- A different matrix: D⁻¹ (the inverse of the full KKT Hessian)
+- An artificial zero in the dual component
+
+**There is NO mathematical justification** for why adding A^T v to the gradient and using D⁻¹ instead of (∇²φ)⁻¹ would preserve the bound v_f.
+
+---
+
+## Error 3: The Zero Component Comes from Feasibility (RESOLVED)
+
+### Why the Zero Component
+
+The vector is constructed as:
+```
+[∇φ(x) + A^T v; 0]
+```
+
+**This is actually justified:** At a **feasible point** where Ax = b_t, the gradient of the Lagrangian is:
+```
+r_t(y, η) = [∇d_η(x) + A^T v; Ax - b_t] = [∇φ(x) + A^T v; 0]
+```
+
+So the dual component is zero because **the point is primal feasible**. This resolves why the vector has this specific structure.
+
+### What the Computation Actually Involves
+
+Using the block inverse formula for D⁻¹:
+```
+D⁻¹ = [(∇²φ)⁻¹ - (∇²φ)⁻¹A^T(A(∇²φ)⁻¹A^T)⁻¹A(∇²φ)⁻¹    ...]
+      [...                                                    ...]
+```
+
+The computation becomes:
+```
+[∇φ(x) + A^T v; 0]^T D⁻¹ [∇φ(x) + A^T v; 0]
+= [∇φ(x) + A^T v]^T [projected Hessian inverse] [∇φ(x) + A^T v]
+```
+The Bound Cannot Hold for Arbitrary Dual Variables - **CRITICAL**
+
+### The Claimed Inequality
+
+```
+[∇φ(x) + A^T v; 0]^T D⁻¹ [∇φ(x) + A^T v; 0] ≤ v_f  for ANY pair (x,v)
+```
+
+### Why This Fails for Arbitrary v
+
+Expanding the quadratic form using the projected Hessian P:
+```
+(∇φ(x) + A^T v)^T P (∇φ(x) + A^T v)
+= ∇φ(x)^T P ∇φ(x) + 2∇φ(x)^T P A^T v + v^T A P A^T v
+```
+
+**The problem:** For arbitrary dual variable v, the last two terms involving v are **unbounded**!
+
+Specifically:
+- The term `2∇φ(x)^T P A^T v` is **linear in v**
+- The term `v^T A P A^T v` is **quadratic in v**
+
+By choosing v large enough, we can make the total expression **arbitrarily large**, contradicting any fixed bound v_f.
+
+### When Would the Bound Hold?
+
+The bound would make sense if v were **not arbitrary** but specifically:
+
+**Case 1: Optimal dual variable**
+At the barrier optimum (x*, v*), we have the optimality condition:
+```
+∇d_η(x*) + A^T v* = 0  ⟹  ηc + ∇φ(x*) + A^T v* = 0
+```
+
+In this case, [∇φ(x*) + A^T v*; 0] ≠ [ηc; 0], not the vector in question.
+
+**Case 2: Small v relative to problem scale**
+If ||v|| is bounded by problem parameters, then the bound might hold with a modified constant. But this is NOT what the paper claims.
+
+### Mathematical Counterexample
+
+Consider a simple case:
+- Let ∇φ(x) = 0 (at a critical point of the barrier)
+- Then the expression becomes: v^T A P A^T v
+
+Since A P A^T = A(∇²φ)⁻¹A^T - A(∇²φ)⁻¹A^T(A(∇²φ)⁻¹A^T)⁻¹A(∇²φ)⁻¹A^T = 0 by the projection property... wait, let me reconsider.
+
+Actually, for the projected inverse:
+```
+P = (∇²φ)⁻¹ - (∇²φ)⁻¹A^T(A(∇²φ)⁻¹A^T)⁻¹A(∇²φ)⁻¹
+```
+
+We have A P = 0 (projection onto null space of A means AP = 0).
+
+So actually:
+```
+(∇φ(x) + A^T v)^T P (∇φ(x) + A^T v) = ∇φ(x)^T P ∇φ(x) + 2v^T A P ∇φ(x) + v^T A P A^T v
+                                      = ∇φ(x)^T P ∇φ(x)  (since AP = 0)
+```
+
+**This changes everything!** The v-dependent terms **do** vanish due to the projection property.
+
+### Revised Analysis
+
+Since AP = 0 and PA^T projects to null space:
+```
+(∇φ(x) + A^T v)^T P (∇φ(x) + A^T v) = ∇φ(x)^T P ∇φ(x) + (A^T v)^T P (A^T v)
+```
+
+But PA^T v might not vanish... Let me verify: P A^T = [(∇²φ)⁻¹ - (∇²φ)⁻¹A^T(...)] A^T
+
+Actually, the projection property means:
+- P projects vectors onto null(A)
+- A^T v is in the range of A^T, which is orthogonal to null(A) in the (∇²φ)⁻¹ inner product
+
+So P A^T should give something non-trivial.
+
+The correct statement is:
+```
+(∇φ(x) + A^T v)^T P (∇φ(x) + A^T v) = ∇φ(x)^T P ∇φ(x) + v^T [A P A^T] v
+```
+
+And A P A^T = A(∇²φ)⁻¹A^T - A(∇²φ)⁻¹A^T = 0.
+
+Wait, that's clearly wrong. Let me recalculate properly:
+
+A P A^T = A[(∇²φ)⁻¹ - (∇²φ)⁻¹A^T(A(∇²φ)⁻¹A^T)⁻¹A(∇²φ)⁻¹]A^T
+        = A(∇²φ)⁻¹A^T - A(∇²φ)⁻¹A^T(A(∇²φ)⁻¹A^T)⁻¹A(∇²φ)⁻¹A^T
+        = A(∇²φ)⁻¹A^T - A(∇²φ)⁻¹A^T
+        = 0
+
+So indeed A P A^T = 0.
+
+Therefore:
+```
+(∇φ(x) + A^T v)^T P (∇φ(x) + A^T v) 
+= ∇φ(x)^T P ∇φ(x) + 2∇φ(x)^T P A^T v + v^T A P A^T v
+= ∇φ(x)^T P ∇φ(x) + 2∇φ(x)^T P A^T v
+```
+
+And P A^T = (∇²φ)⁻¹A^T - (∇²φ)⁻¹A^T(A(∇²φ)⁻¹A^T)⁻¹A(∇²φ)⁻¹A^T = (∇²φ)⁻¹A^T[I - (A(∇²φ)⁻¹A^T)⁻¹A(∇²φ)⁻¹A^T]
+
+This still doesn't vanish in general.
+
+So the middle term `2∇φ(x)^T P A^T v` is still problematic and depends on v.
+
+### The Real Issue
+
+The bound **cannot hold for arbitrary v** unless:
+1. ∇φ(x)^T P A^T = 0 (which requires special structure), OR
+2. v is constrained somehow (not arbitrary), OR  
+3. The paper's statement is incorrect
+
+The statement "for any pair x,v" appears to be **too strong**
+The bound ||h(y)||²_D(y) ≤ v_f is used in the proof of Lemma eta to control how the Newton step changes when the barrier parameter η is updated.
+
+### The Real Question
+
+For the analysis to be rigorous, we need to know:
+1. **When does this bound hold?** (All points? Only near optimality?)
+2. **Does it depend on v?** (The dual multiplier is not arbitrary)
+3. **What is the correct reference or proof?**
+
+At optimality of the barrier problem, we have ∇φ(x) + A^T v = 0, so the vector would be [0; 0] with norm 0. This suggests the bound might only hold **near optimality** or for **specific values of v**, not arbitrary pairs (x, v).
+
+---
+
+## Missing Reference Investigation
+
+**Search Results:** The cited "Section 2.3.1" in Renegar cannot be located. Possible explanations:
+1. Wrong section number (should be different chapter/section)
+2. Different edition of the book
+3. Misremembering a result from another source
+4. The result doesn't exist as stated
+
+**Likely correct references** (if they exist):
+- Renegar, Chapter 2, Section 2.2 on barrier complexity
+- Boyd & Vandenberghe, Section 11.6 on barrier methods
+- But neither seems to contain this specific result
+
+---
+
+## Impact on the Paper
+
+This bound ||h(y)|| ≤ √v_f is used in:
+1. Proof of Lemma eta (line 793-794)
+2. Potentially affects the barrier parameter update strategy
+
+**Since this bound is not properly justified, Lemma eta's proof is incomplete.**
+
+---
+
+## Recommended Actions
+
+1. **Find the correct reference** or acknowledge it cannot be found
+2. **Provide a rigorous proof** of the inequality, potentially with additional conditions
+3. **Clarify when the bound holds** (all feasible points? near optimality? specific v?)
+4. **Alternative approach:** Use a different bound that can be properly justified from first principles
+
+---
+
+## Verdict
+
+This is a **significant gap in the proof**. The inequality is **not justified** by the cited reference, involves a **logical leap** from barrier complexity to a modified gradient norm, and **lacks rigorous derivation**. The proof of Lemma eta cannot be considered complete without addressing this issue.

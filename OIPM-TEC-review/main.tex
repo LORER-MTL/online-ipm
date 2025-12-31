@@ -332,7 +332,12 @@ We now present a sequence of lemmas that will later be used to to prove our main
     \end{align*}
     where the last inequality follows from \eqref{def:selfconcordance}.
 \end{proof}
-\WZZ{the first equality is false. you cannot invert the matrix inside the norm with equality.}
+\WZZ{the first equality is false. you cannot invert the matrix inside the norm with equality.
+I read \cite[\S 2.5 Theorem 2.5.1]{renegar} (which is the result I think you are trying to generalize)
+but there they have the relationship:
+$\|H_x(y)^{-1}\|_x = \|H_y(x)\|_y$
+which is slightly different because the argument to the hessian change,
+there is no multiplication of two hessians, and the argument to the norms also change.}
 
 \WZZ{the second equality is also not clear. where did the norms square appear from?
 If you were doing the operator norm expansion of a matrix then it should have a sup, not a min.
@@ -340,7 +345,7 @@ For matrices, it is defined as the square root of the largest singular value, sc
 
 \WZZ{the third line is also not clear to me. you replaced min. by sup. and swapped the order of the two terms in the fraction.
 this relationship is not correct. I think in general we can only guarantee that 
-min (a/b) = 1 / max (b/a), but not that min(a/b) $\leq$ max(b/a).
+$\min (a/b) = 1/\max (b/a)$, but not that $\min(a/b) \leq \max(b/a)$.
 I read \cite[\S 2.2.3]{renegar} (which I assume is what you are referring to) 
 but renegar uses a fixed vector v to get the inequality, and the min. is over
 the indices of barrier functionals ($i.e. f_1, f_2$) in a summation, not over the direction v.}
@@ -462,12 +467,34 @@ $\DD(\yy)^{-1}$ is positive definite, which is not the case. We need to be more 
 % Although this formulation is quite heavy, the important element is that the Hessian norm of the Newton step is completely independent of the dual variable $\vv$ when the current iterate is feasible. Furthermore, we can prove that this is the same quantity as would be obtained from applying Newton's method to the equivalent projected problem. 
 
 
-From~\cite[Section 2.3.1]{renegar}, we have that the restriction of any barrier functional to a subspace or translation of a subspace results in a barrier functional whose complexity barrier is smaller than that of the original functional. This implies that if $\norm{\phi(\xx)}_{\nabla^2 \phi(\xx)}^2\le v_f$ any pair $\xx, \vv$ satisfies:
+From~\cite[Section 2.3.1]{renegar}, we have that the restriction of any barrier functional to a subspace or translation of a subspace results in a barrier functional whose complexity barrier is smaller than that of the original functional.
+\WZZsuggestion{I could not find the reference in the section in question.
+Are you talking about Theorem 2.3.2? If so, the context seems slightly different.}
+
+\WZZ{Also, what we are doing below is not a restriction to a subspace, but rather zeroing out some gradient components
+(those corresponding to the primal feasibility).
+Are we implying that these points are feasible and satisfy $Ax=b_t$?
+If anything, this relationship seems to operate in the superspace (of the primal-dual variables),
+not a subspace (like in Renegar, which stays in the primal space restricted to ${x: Ax=b_t}$).}
+
+This implies that if $\norm{\phi(\xx)}_{\nabla^2 \phi(\xx)}^2\le v_f$ any pair $\xx, \vv$ satisfies:
 \[\begin{bmatrix}
         \nabla \phi(\xx) +\AA^\top\vv\\ \mathbf{0}
     \end{bmatrix}^\top\DD(\xx)^{-1}\begin{bmatrix} \nabla \phi(\xx) +\AA^\top\vv\\ \mathbf{0}\end{bmatrix} \le v_f.\]
-Defining  $h(\yy) \stackrel{\text{def}}{=} \DD(\xx)^{-1}\begin{bmatrix} \nabla \phi(\xx) +\AA^\top\vv\\ \mathbf{0}\end{bmatrix},$ we notice that $\normy{h(\yy)} \le \sqrt{v_f}$. We will use this result in Lemma \ref{lem:eta}.
 
+\WZZ{Also the claimed bound doesn't hold for arbitrary dual variable $\vv$.
+As $\|\vv\| \to \infty$, the quadratic form in the left hand side will
+becomes unbounded due to cross-terms.
+The complexity bound $v_f$ only applies to the barrier functional in the primal variables,
+not to arbitrary dual variables.}
+
+\WZZsuggestion{maybe this will be true for either dual feasible points, or for dual variables
+that are optimal for the current primal variable $\xx$.
+We should add a clarifying sentence before we mention "any pair".}
+
+Defining  $h(\yy) \stackrel{\text{def}}{=} \DD(\xx)^{-1}\begin{bmatrix} \nabla \phi(\xx) +\AA^\top\vv\\ \mathbf{0}\end{bmatrix},$ we notice that $\normy{h(\yy)} \le \sqrt{v_f}$. We will use this result in Lemma \ref{lem:eta}.
+\WZZtypo{should it be $\DD(\yy)^{-1}$ instead of $\DD(\xx)^{-1}$, here for consistency with the definition
+of the hessian of the Lagrangian?}
 \begin{lemma}
     \label{lem:eta}
     \textcolor{Blue}{For a pair $\{\yy,\nn\}$ such that $\yy$ is feasible and $\normy{n_t(\yy,\nn)}\le\frac{1}{9}$}, there exists a parameter $1<\beta\le 1+\frac{1}{8\sqrt{v_f}}$ such that for $\nn^+ = \beta\nn$, we have:
@@ -781,8 +808,12 @@ Substituting \eqref{eq:3} into \eqref{eq:22} completes the proof. $\blacksquare$
 We can decompose the Newton's step taken at any feasible point in the following way: 
 \begin{align*}n_t(\yy, \nn) &= -\DD(\xx)^{-1}\begin{bmatrix}\nn \cc + \nabla\phi(\xx) + \AA^\top\vv\\ \mathbf{0}\end{bmatrix}\\
 &= -\DD(\xx)^{-1}\left(\begin{bmatrix}\nn \cc \\ \mathbf{0}\end{bmatrix}+\begin{bmatrix}\nabla\phi(\xx) + \AA^\top\vv \\ \mathbf{0}\end{bmatrix}\right). \end{align*}
-This allows us to express $n_t(\yy, \nn^+)$ as a function of $n_t(\yy, \nn)$:
+\WZZtypo{should the argument to the hessian be $\yy$ instead of $\xx$, for consistency?}
+This allows us to express $n_t(\yy, \nn^+)$ as a function of $n_t(\yy, \nn)$ 
+\WZZsuggestion{If its possible, it would nice to describe this relationship using english.
+Example: "This allows us to express the newton's step taken at $\eta^+$ as a function of the previous newton's step."}:
 \[n(\yy,\nn^+) = \frac{\nn^+}{\nn}n_t(\yy,\nn) + \left(\frac{\nn^+}{\nn}-1\right)h(\yy).\]
+\WZZtypo{missing a subscript $t$ in the first $n$ above.}
 Taking the Hessian norm on both sides leads to:
 \begin{align*}
     \normy{n_t(\yy,\nn^+)} &\le \frac{\nn^+}{\nn}\norm{n_t(\yy,\nn)}_{\DD(\yy)}+\left |1-\frac{\nn^+}{\nn}\right |\normy{h(\yy)}\\
