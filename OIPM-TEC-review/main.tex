@@ -743,7 +743,10 @@ The possibility of using OCO approaches to solve the OPF bridges the gap between
 
 From the definition of the Newton's step, we have:
 \[\norm{n_t(\yy, \nn)}_{\DD(\yy)}^2 = r_t(\yy,\nn)^\top\DD(\yy)^{-1}r_t(\yy,\nn).\]
-We can express $\norm{n_t(\yy^+,\nn)}_{\DD(\yy^+)}$ as:
+We can express $\norm{n_t(\yy^+,\nn)}_{\DD(\yy^+)}$ \WZZtypo{I think you are missing a square here} as:
+
+\WZZsuggestion{maybe we can directly go to the derivations and avoid the sentence above?
+We would need to change the equations to be directly in terms of $y^+$ though.}
 \begin{align*}
     &\norm{n_t(\yy^+,\nn)}^2_{\DD(\yy^+)} = r_t(\yy^+,\nn)^\top\DD(\yy^+)^{-1}r_t(\yy^+,\nn)\\
     &\quad\quad= r_t(\yy^+,\nn)^\top\DD(\yy)^{-1}\DD(\yy)\DD(\yy^+)^{-1}r_t(\yy^+,\nn)\\
@@ -751,7 +754,8 @@ We can express $\norm{n_t(\yy^+,\nn)}_{\DD(\yy^+)}$ as:
     &\quad\quad= \norm{\DD(\yy)\DD(\yy^+)^{-1}}_{\DD(\yy)} \norm{\DD(\yy)^{-1}r_t(\yy^+,\nn)}^2_{\DD(\yy)},
 \end{align*}
 where $\DD(\yy)^\top = \DD(\yy)$ because $\DD$ is symmetric.
-Using Assumption 4, we can bound the first term by:
+Using Assumption 4 \WZZtypo{is this a typo? did you mean Lemma 1 instead?},
+we can bound the first term by:
 \begin{align*}
     \norm{\DD(\yy)\DD(\yy^+)^{-1}}_{\DD(\yy)} &\le \frac{1}{(1-\norm{\yy^+-\yy}_{\DD(\yy)})^2}\\
     &= \frac{1}{(1-\norm{n_t(\yy,\nn)}_{\DD(\yy)})^2.}

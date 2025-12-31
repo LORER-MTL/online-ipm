@@ -54,39 +54,58 @@ The entire first line of the proof is **mathematically incorrect**. You cannot "
 ‖(D(y₁)D⁻¹(y₂))⁻¹‖_{D(y₁)} = min_{v≠0} ‖v‖²_{D(y₁)} / (vᵀD(y₂)v)
 ```
 
-This claims that the induced operator norm of a matrix inverse (in the Hessian norm) equals a minimum generalized Rayleigh quotient.
+This equality has **multiple fundamental errors**.
 
 ### Notation Clarification
 
 The notation ‖·‖_{D(y₁)} denotes the Hessian-induced norm:
-- For vectors: ‖v‖_{D(y₁)} = √(vᵀD(y₁)v)
+- For vectors: ‖v‖_{D(y₁)} = √(vᵀD(y₁)v) (NOT squared)
 - For matrices: ‖M‖_{D(y₁)} is the induced operator norm with respect to this Hessian norm
 
-### Why This is False
+### Error A: Dimensional Inconsistency (Squared Norms Appearing from Nowhere)
+
+**Left side:** ‖M⁻¹‖_{D(y₁)} is a **norm** (not squared)
+
+**Right side:** ‖v‖²_{D(y₁)} / (vᵀD(y₂)v) has **squared norms** in the numerator
+
+This is dimensionally inconsistent! The LHS is a norm, but the RHS formula would give a norm **squared**. The operator norm is defined as:
+```
+‖M‖_{D(y₁)} = sup_{v≠0} ‖Mv‖_{D(y₁)} / ‖v‖_{D(y₁)}
+```
+with **no squares**. If you square both norms in the ratio, you get ‖M‖²_{D(y₁)}, not ‖M‖_{D(y₁)}.
+
+**Where did the squares come from?** They appear out of nowhere in line 329, making the equation dimensionally wrong.
+
+### Error B: Min vs Sup (Wrong Optimization Direction)
+
+Even if we ignore the squaring issue, the formula uses **min** instead of **sup**. The operator norm is defined with a **supremum**, not a minimum.
+
+### Error C: Wrong Formula Entirely
 
 **Left side:** The Hessian-induced operator norm of M⁻¹ (where M = D(y₁)D⁻¹(y₂)):
 ```
 ‖M⁻¹‖_{D(y₁)} = sup_{v≠0} ‖M⁻¹v‖_{D(y₁)} / ‖v‖_{D(y₁)}
                 = sup_{v≠0} √[(M⁻¹v)ᵀD(y₁)(M⁻¹v)] / √[vᵀD(y₁)v]
-                = √[λ_max(M⁻ᵀD(y₁)M⁻¹, D(y₁))]
 ```
 
-This is a **supremum** measuring how much the linear transformation M⁻¹ can stretch vectors in the D(y₁)-norm. It equals the square root of the maximum generalized eigenvalue.
+This is a **supremum** measuring how much the linear transformation M⁻¹ can stretch vectors in the D(y₁)-norm.
 
-**Right side:** The minimum generalized Rayleigh quotient:
+**Right side:** The minimum generalized Rayleigh quotient (ignoring the squaring):
 ```
 min_{v≠0} (vᵀD(y₁)v) / (vᵀD(y₂)v) = λ_min(D(y₁), D(y₂))
 ```
 
-This is the **minimum** eigenvalue of the matrix pencil, comparing two quadratic forms directly.
+This is a **ratio of two quadratic forms** without any matrix transformation applied to v.
 
 ### The Fundamental Issue
 
-Even though both sides involve the Hessian norm D(y₁), these are **completely different mathematical objects**:
-- The operator norm ‖M⁻¹‖_{D(y₁)} involves **applying the linear transformation** M⁻¹ to vectors, then measuring their D(y₁)-norm
-- The Rayleigh quotient min (vᵀD(y₁)v)/(vᵀD(y₂)v) is just a **ratio of two quadratic forms** without any matrix transformation applied to v
+These are **completely different mathematical objects**:
+- The operator norm involves **applying the linear transformation** M⁻¹ to vectors, then measuring their D(y₁)-norm
+- The Rayleigh quotient is just a **ratio of two quadratic forms** without any matrix transformation applied to v
+- One is a norm (unsquared), the other would be a norm squared
+- One uses supremum, the other uses minimum
 
-The equality cannot hold. This is a fundamental conceptual error, conflating induced operator norms (which involve matrix-vector products) with Rayleigh quotients (which are purely scalar ratios of quadratic forms).
+This is a fundamental conceptual error with multiple layers of mistakes.
 
 ---
 
@@ -201,7 +220,7 @@ This lemma (invHess) is used in:
 
 ---
 
-# Part 2: Errors in Proof of Lemma (nred) - Lines 719-751
+# Part 2: Errors in Proof of Lemma (nred) - Lines 743-778
 
 ## Summary
 
@@ -209,7 +228,7 @@ This proof contains **multiple critical errors** that undermine its mathematical
 
 ---
 
-## Error 1: Unjustified Inequality (Line 726) - **CRITICAL**
+## Error 1: Unjustified Inequality (Line 752) - **CRITICAL**
 
 ### The Claim
 ```latex
@@ -256,24 +275,18 @@ But we need the **inverse** relationship (with D⁻¹), which doesn't directly f
 
 ---
 
-## Error 2: Notation Inconsistency (Line 738)
+## Error 2: Notation Inconsistency (Line 769)
 
 ### The Problem
 ```latex
 ‖D(y)⁻¹[r_t(y⁺, η) - r_t(y, η)]‖
 ```
 
-The variable suddenly switches from **η** (eta) to **η** in the subscript of r_t, when it should consistently be **η** (the barrier parameter used throughout).
-
-### Fix
-Should be:
-```latex
-‖D(y)⁻¹[r_t(y⁺, η) - r_t(y, η)]‖
-```
+The variable notation for the barrier parameter may be inconsistent. Should verify that η (eta) is used consistently throughout.
 
 ---
 
-## Error 3: Sign Error in Fundamental Theorem Application (Line 740)
+## Error 3: Sign Error in Fundamental Theorem Application (Line 770)
 
 ### The Claim
 ```latex
@@ -299,11 +312,11 @@ Should be:
 
 ---
 
-## Error 4: Missing Newton Step Factor (Line 740)
+## Error 4: Missing Newton Step Factor (Line 770)
 
 ### The Problem
 
-The integral in line 740 is missing the Newton step direction **n_t(y,η)** inside the norm:
+The integral in line 770 is missing the Newton step direction **n_t(y,η)** inside the norm:
 
 **Current (incorrect):**
 ```latex
@@ -329,7 +342,7 @@ D(y)⁻¹[r_t(y⁺,η) - r_t(y,η)] = D(y)⁻¹ ∫₀¹ D(y + τn_t(y,η)) · n
 
 ---
 
-## Error 5: Incorrect Antiderivative (Lines 746-747)
+## Error 5: Incorrect Antiderivative (Lines 774-775)
 
 ### The Claim
 ```latex
@@ -389,27 +402,23 @@ This suggests the authors may have **reverse-engineered** the calculation to get
 
 | Line | Error Type | Severity | Description |
 |------|------------|----------|-------------|
-| 726  | Unjustified inequality | **CRITICAL** | Matrix norm application is invalid or insufficiently justified |
-| 738  | Notation inconsistency | Minor | η vs η mismatch |
-| 740  | Sign error | Major | Should be y + τn, not y - τn |
-| 740  | Missing factor | **CRITICAL** | Newton step n_t(y,η) missing from integrand |
-| 746-747 | Wrong antiderivative | Major | Sign error that happens to cancel out |
+| 752  | Unjustified inequality | **CRITICAL** | Matrix norm application is invalid or insufficiently justified |
+| 769  | Notation inconsistency | Minor | Potential η notation mismatch |
+| 770  | Sign error | Major | Should be y + τn, not y - τn |
+| 770  | Missing factor | **CRITICAL** | Newton step n_t(y,η) missing from integrand |
+| 774-775 | Wrong antiderivative | Major | Sign error that happens to cancel out |
 
 ---
 
 ## Recommended Actions
 
-1. **Line 726:** Either find an alternative proof approach that doesn't use this matrix norm manipulation, or provide a rigorous justification for why this inequality holds.
+1. **Line 752:** Either find an alternative proof approach that doesn't use this matrix norm manipulation, or provide a rigorous justification for why this inequality holds.
 
-2. **Line 738:** Fix notation consistency (η → η).
+2. **Line 769:** Verify notation consistency for η (eta).
 
-3. **Line 740:** Correct the sign (y - τn → y + τn) and include the missing Newton step factor.
+3. **Line 770:** Correct the sign (y - τn → y + τn) and include the missing Newton step factor.
 
-4. **Lines 746-747:** Fix the antiderivative sign to use proper mathematical notation, even though the final result is accidentally correct.
-
-5. **Overall:** Consider reviewing the proof against the original reference (likely Renegar's book) to ensure all steps are correctly adapted to the constrained setting.
-
----
+4. **Lines 774-775:** Fix the antiderivative sign to use proper mathematical notation, even though the final result is accidentally correct.
 
 ## Impact Assessment
 
