@@ -288,7 +288,7 @@ eigenvalues. One might attempt to circumvent this by taking absolute values befo
 modification imposes restrictive curvature bounds that fail to capture simple non-convex structures; for
 example, the sigmoid function violates this property."
 
-I think that this suggests that there are potentially no simple remedies to the current analysis.}
+I think that this suggests there are potentially no simple remedies to the current analysis.}
 
 \WZZsuggestion{I have a radical proposition to avoid using any kind of self-concordance analysis at all.
 My understanding is that it is used to prove an upper bound on the number of Newton steps required to reach a certain accuracy
@@ -536,13 +536,19 @@ Finally, we relate $\norm{\yy_t-\yy_t^\nn}_{\DD(\yy_t)}$ to $\norm{\xx_t-\xx_t^\
     \WZZ{again we need to be careful. This is not the hessian norm but rather its square.
     Also the inequality holds after taking the square root only if both sides are non-negative, which is not
     necessarily the case for the left-hand side since $\DD(\yy_t)$ is not positive definite.}
+    
+    \WZZ{I looked at this further and found another potential issue, even if $\DD(\yy_t)$ were positive definite.
+    The inequality on the second line above can be simplified to the following (after expanding and simplifying):
+    $2(\xx_t-\xx_t^\nn)^\top \AA^\top (\vv_t - \vv_t^\nn) \geq 0$.
+    However, this inequality is not true for any primal-dual feasible point $\yy$.}
 \end{proof}
 
 \section{Algorithms} \label{algos}
 
 Suppose we have an initial primal-dual point $\xx_0$, $\vv_0$ and an initial barrier parameter $\nn_0$ such that $\norm{n_0(\yy_0, \nn_0)}_{\DD(\yy_0)} \le \frac{1}{9}$ and $\AA\xx_0=\bb_0$. \textcolor{Blue}{In practice, this can be achieved using offline optimization before the start of the online procedure.}
-\WZZsuggestion{This seems to require a feasible point that has a small newton step. 
-Is it really required to solve an entire optimization problem to find such a point?
+\WZZsuggestion{This is basically a requirement of feasibility and proximity to the central path (hence the small newton step).
+Discussions with Antoine said that an offline problem is solved to optimality to find such a point.
+Is there a simpler approach to find such a point, rather than solving an entire optimization problem?
 Maybe we can consider Phase 1 feasibility methods?}.
 We propose the online interior-point method for time-varying equality constraints (\texttt{OIPM-TEC}) presented in Algorithm~\ref{alg:TIP2}.
 

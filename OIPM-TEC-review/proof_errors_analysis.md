@@ -727,3 +727,127 @@ This bound ||h(y)|| ≤ √v_f is used in:
 ## Verdict
 
 This is a **significant gap in the proof**. The inequality is **not justified** by the cited reference, involves a **logical leap** from barrier complexity to a modified gradient norm, and **lacks rigorous derivation**. The proof of Lemma eta cannot be considered complete without addressing this issue.
+
+---
+
+# Part 5: Errors in Lemma yx (Lines 519-540)
+
+## Overview
+
+**Lemma yx** claims:
+```
+‖y_t - y_t^η‖_{D(y_t)} ≥ ‖x_t - x_t^η‖_{∇²φ(x_t)}
+```
+
+This lemma attempts to relate the full primal-dual Newton step norm to just the primal component. However, **the proof contains a critical algebraic error**.
+
+---
+
+## Error 1: Ignoring Cross Terms in Quadratic Form - **CRITICAL**
+
+### The Claim (Lines 528-531)
+
+The proof claims:
+```latex
+‖y_t - y_t^η‖²_{D(y_t)} = (y_t - y_t^η)ᵀD(y_t)(y_t - y_t^η)
+                         ≥ [x_t - x_t^η; 0]ᵀD(y_t)[x_t - x_t^η; 0]
+                         = (x_t - x_t^η)ᵀ∇²φ(x_t)(x_t - x_t^η)
+```
+
+### Why This is False
+
+Recall the structure of D(y_t):
+```
+D(y_t) = [∇²φ(x_t)   Aᵀ ]
+         [A           0  ]
+```
+
+And the vector decomposition:
+```
+y_t - y_t^η = [x_t - x_t^η]
+              [v_t - v_t^η]
+```
+
+**Left side (full expansion):**
+```
+(y_t - y_t^η)ᵀD(y_t)(y_t - y_t^η) 
+= (x_t - x_t^η)ᵀ∇²φ(x_t)(x_t - x_t^η) 
+  + 2(x_t - x_t^η)ᵀAᵀ(v_t - v_t^η)
+  + (v_t - v_t^η)ᵀ·0·(v_t - v_t^η)
+
+= (x_t - x_t^η)ᵀ∇²φ(x_t)(x_t - x_t^η) + 2(x_t - x_t^η)ᵀAᵀ(v_t - v_t^η)
+```
+
+**Right side:**
+```
+[x_t - x_t^η; 0]ᵀD(y_t)[x_t - x_t^η; 0] = (x_t - x_t^η)ᵀ∇²φ(x_t)(x_t - x_t^η)
+```
+
+**The claimed inequality becomes:**
+```
+2(x_t - x_t^η)ᵀAᵀ(v_t - v_t^η) ≥ 0
+```
+
+**This is completely unjustified!** 
+
+The cross term (x_t - x_t^η)ᵀAᵀ(v_t - v_t^η) is an arbitrary inner product that can be:
+- **Positive** (when the primal and dual differences are "aligned")
+- **Negative** (when they point in "opposite" directions)
+- **Zero** (only in special cases)
+
+There is **no mathematical reason** why this cross term should always be non-negative.
+
+### The Root Cause
+
+The error stems from incorrectly assuming that "zeroing out part of a vector" in a quadratic form makes it smaller. This would be true **only if** the matrix were block diagonal (no cross terms). But D(y_t) is **not** block diagonal—it has significant off-diagonal blocks A and Aᵀ.
+
+### Concrete Counterexample
+
+Consider a simple case:
+- A is a 1×1 matrix with A = [1]
+- ∇²φ(x_t) = 1 (scalar)
+- x_t - x_t^η = 1
+- v_t - v_t^η = -10
+
+Then:
+```
+LHS = 1·1·1 + 2·1·1·(-10) = 1 - 20 = -19
+RHS = 1·1·1 = 1
+```
+
+So we get -19 ≥ 1, which is **false**.
+
+---
+
+## Error 2: D(y_t) is Not Positive Definite
+
+As noted in the WZZ comment (lines 536-538), there's a secondary issue: D(y_t) is not positive definite—it has a zero block in the bottom-right corner, making it only positive semidefinite (actually indefinite).
+
+This creates problems:
+1. The "Hessian norm" ‖·‖_{D(y_t)} is not a proper norm when D(y_t) is not positive definite
+2. Taking square roots of the inequality (line 534) assumes both sides are non-negative, which isn't guaranteed
+
+However, **even if D(y_t) were somehow made positive definite**, Error 1 (the cross-term issue) would still invalidate the proof.
+
+---
+
+## Impact on the Paper
+
+Lemma yx is used to bound the primal Newton step in terms of the full primal-dual Newton step. Without this lemma:
+- The analysis connecting primal and dual convergence may be incomplete
+- Bounds on x_t - x_t^η cannot be derived from bounds on y_t - y_t^η
+
+---
+
+## Recommended Actions
+
+1. **Check if the inequality direction is reversed**: Perhaps the lemma should have ≤ instead of ≥?
+2. **Derive a correct relationship** between ‖y_t - y_t^η‖_{D(y_t)} and ‖x_t - x_t^η‖_{∇²φ(x_t)}, accounting for cross terms
+3. **Use alternative techniques**: Perhaps bound the primal component directly without going through the full norm
+4. **Consider the Schur complement**: The proper way to analyze block matrices with cross terms
+
+---
+
+## Verdict
+
+This proof is **mathematically incorrect**. The inequality in line 529 is **false in general** due to unaccounted cross terms from the off-diagonal blocks of D(y_t). The proof cannot be salvaged without a fundamentally different approach.
