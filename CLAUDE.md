@@ -12,6 +12,7 @@ GitHub: https://github.com/LORER-MTL/online-ipm
 
 - `OIPM-TEC-review/` - Paper review materials
   - `proof_errors_analysis.md` - Detailed analysis of proof errors
+  - `slack_variable_analysis.md` - Analysis of why slack variable projection fails for inequalities
   - `main.tex` - LaTeX source for the review
   - `main.pdf` - Compiled review document
 
