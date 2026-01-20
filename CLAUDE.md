@@ -4,21 +4,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This repository documents critical errors found in the paper "Online Interior Point Methods for Time-Varying Equality Constraints". The main analysis is in `OIPM-TEC-review/`.
+This repository documents critical errors found in the paper "Online Interior Point Methods for Time-Varying Equality Constraints" (OIPM-TEC). The main analysis and review materials are in `OIPM-TEC-review/`.
 
 GitHub: https://github.com/LORER-MTL/online-ipm
 
 ## Repository Structure
 
-- `OIPM-TEC-review/` - Paper review materials
-  - `proof_errors_analysis.md` - Detailed analysis of proof errors
+- `OIPM-TEC-review/` - Paper review and analysis
+  - `main.tex` / `main.pdf` - LaTeX review document
+  - `proof_errors_analysis.md` - Detailed analysis of proof errors (Lemmas invHess, nred, yx, and barrier complexity argument)
   - `slack_variable_analysis.md` - Analysis of why slack variable projection fails for inequalities
-  - `main.tex` - LaTeX source for the review
-  - `main.pdf` - Compiled review document
-
+  - `barrier_reformulation_analysis.md` - Analysis of why OPEN-M barrier reformulation fails for inequalities
+  - `open_m_correctness_analysis.md` - Analysis of OPEN-M paper correctness (time-varying A_t, orthonormal basis requirement)
 - `papers/` - Reference papers (MOSP.pdf, OIPM_JLL.pdf, OPEN-TEC-JLL.pdf)
-
-- `online-ipm/` - Source code (for future implementation)
+- `online_ipm/` - Source code and numerical experiments
+  - `experiments/test_orthonormal_basis.py` - Numerical verification of orthonormal basis requirement
 
 ## Setup
 
@@ -30,42 +30,73 @@ uv sync
 pip install -e .
 ```
 
+## Building the LaTeX Document
+
+```bash
+cd OIPM-TEC-review
+pdflatex main.tex
+bibtex main
+pdflatex main.tex
+pdflatex main.tex
+```
+
 ## Paper Errors Summary
 
-The paper "Online Interior Point Methods for Time-Varying Equality Constraints" contains **many critical errors** in its proofs. Full details in `OIPM-TEC-review/proof_errors_analysis.md`.
+The paper contains **critical errors** in its proofs. Full details in `OIPM-TEC-review/proof_errors_analysis.md`.
 
-### Lemma invHess (Lines 325-335) - CRITICAL
+### Lemma invHess (Lines 325-335)
+Claims `‖D(y₁)D⁻¹(y₂)‖_{D(y₁)} ≤ 1/(1-‖y₁-y₂‖_{D(y₁)})²`
 
-**Claims:** `‖D(y₁)D⁻¹(y₂)‖_{D(y₁)} ≤ 1/(1-‖y₁-y₂‖_{D(y₁)})²`
+**Critical errors:**
+1. False equality `‖M‖_{D(y₁)} = ‖M⁻¹‖_{D(y₁)}` — only holds for isometries
+2. Dimensional inconsistency (norm vs squared norm)
+3. Uses minimum instead of supremum in operator norm definition
+4. Wrong matrix order vs standard self-concordance bounds
 
-**Errors:**
-1. **False equality (Line 328):** Claims `‖M‖_{D(y₁)} = ‖M⁻¹‖_{D(y₁)}` - a matrix and its inverse do NOT have the same operator norm. This only holds for isometries, and D(y₁)D(y₂)⁻¹ is not isometric when y₁ ≠ y₂.
-2. **Dimensional inconsistency (Line 329):** LHS is a norm, RHS has squared norms - dimensionally wrong.
-3. **Min vs Sup (Line 329-330):** Uses minimum instead of supremum in operator norm definition.
-4. **Wrong matrix order:** Standard self-concordance bounds λ_max(D(y₁)⁻¹D(y₂)), but lemma has D(y₁)D(y₂)⁻¹ (reciprocal).
+### Lemma nred (Lines 743-778)
+**Critical errors:**
+1. Unjustified matrix norm inequality (Line 752)
+2. Sign error: uses `y - τn` instead of `y + τn` (Line 770)
+3. Missing Newton step n_t(y,η) in integrand
+4. Wrong antiderivative sign (happens to cancel out)
 
-### Lemma nred (Lines 743-778) - CRITICAL
+### Barrier Complexity Argument (Lines 469-474)
+Claims bounds on `[∇φ(x) + Aᵀv; 0]ᵀ D⁻¹ [∇φ(x) + Aᵀv; 0]` for any (x,v).
 
-**Errors:**
-1. **Unjustified inequality (Line 752):** Matrix norm application conflates operator norm with specific quadratic form ratio - unjustified and potentially incorrect.
-2. **Sign error (Line 770):** Uses `y - τn` but should be `y + τn` since y⁺ = y + n.
-3. **Missing factor (Line 770):** Newton step n_t(y,η) missing from integrand - fundamental theorem of calculus incorrectly applied.
-4. **Wrong antiderivative (Lines 774-775):** Sign error that happens to cancel out, suggesting reverse-engineering.
+**Critical errors:**
+1. Wrong/nonexistent reference ("Section 2.3.1" of Renegar)
+2. Logical gap: barrier complexity ≠ modified gradient norm
+3. Cross term `2∇φ(x)ᵀ P Aᵀ v` makes bound fail for arbitrary v
 
-### Barrier Complexity Argument (Lines 469-474) - CRITICAL
+### Lemma yx (Lines 519-540)
+Claims `‖y_t - y_tη‖_{D(y_t)} ≥ ‖x_t - x_tη‖_{∇²φ(x_t)}`
 
-**Claims:** If `‖∇φ(x)‖²_{∇²φ(x)} ≤ v_f`, then for ANY pair (x,v): `[∇φ(x) + Aᵀv; 0]ᵀ D⁻¹ [∇φ(x) + Aᵀv; 0] ≤ v_f`
+**Critical errors:**
+1. Ignores cross terms: D(y_t) has off-diagonal blocks A and Aᵀ
+2. Counterexample: A=[1], ∇²φ=1, x_t-x_tη=1, v_t-v_tη=-10 gives LHS=-19, RHS=1
+3. D(y_t) is not positive definite (zero block in bottom-right)
 
-**Errors:**
-1. **Wrong reference:** "Section 2.3.1" of Renegar does not contain this result.
-2. **Logical gap:** Barrier complexity ≠ norm of modified gradient. Adding Aᵀv to gradient and using D⁻¹ instead of (∇²φ)⁻¹ does not preserve the bound.
-3. **Cross terms:** The bound cannot hold for arbitrary v due to the term `2∇φ(x)ᵀ P Aᵀ v` which depends on v.
+## OPEN-M Analysis Summary
 
-### Lemma yx (Lines 519-540) - CRITICAL
+The original OPEN-M paper (time-varying equality constraints) has been analyzed for correctness. Full details in `OIPM-TEC-review/open_m_correctness_analysis.md`.
 
-**Claims:** `‖y_t - y_tη‖_{D(y_t)} ≥ ‖x_t - x_tη‖_{∇²φ(x_t)}`
+**Key Finding:** OPEN-M claims to handle time-varying A_t and its proofs appear **mathematically sound**, but contain a **misleading claim**.
 
-**Errors:**
-1. **Ignoring cross terms:** D(y_t) has off-diagonal blocks A and Aᵀ. The proof assumes zeroing part of a vector makes the quadratic form smaller, but this only works for block-diagonal matrices. The cross term `2(x_t - x_tη)ᵀAᵀ(v_t - v_tη)` can be negative.
-2. **Concrete counterexample:** With A=[1], ∇²φ=1, x_t-x_tη=1, v_t-v_tη=-10: LHS=-19, RHS=1, so -19 ≥ 1 is false.
-3. **D(y_t) not positive definite:** Has zero block in bottom-right, making the "Hessian norm" not a proper norm.
+### The "Without Loss of Generality" Issue
+
+The paper claims: "Without loss of generality, we let F_t = F̄_t" (orthonormal basis of null(A_t)).
+
+**This is misleading** — orthonormality is a **required assumption**, not optional:
+- Lemma 2's bounds depend on σ_min(F_t) = ‖F_t‖ = 1
+- With non-orthonormal F_t, bounds inflate by κ(F_t)³
+- Regret becomes O(κ(F_t)·V_T + 1) instead of O(V_T + 1)
+
+**Numerical verification:** Run `uv run python -m online_ipm.experiments.test_orthonormal_basis`
+
+### Comparison: OPEN-M vs OIPM-TEC
+
+| Aspect | OPEN-M | OIPM-TEC |
+|--------|--------|----------|
+| Time-varying A_t? | YES | NO (constant A) |
+| Proofs correct? | Yes (given orthonormal F_t) | Contains errors |
+| Orthonormal basis? | Required (hidden) | N/A |
