@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["online-ipm"]
+where = ["."]
 
 [tool.setuptools]
 py-modules = []
