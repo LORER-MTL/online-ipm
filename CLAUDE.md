@@ -93,6 +93,22 @@ The paper claims: "Without loss of generality, we let F_t = F̄_t" (orthonormal 
 
 **Numerical verification:** Run `uv run python -m online_ipm.experiments.test_orthonormal_basis`
 
+**Note:** The orthonormal basis F_t is for the **null space of the constraint matrix A_t** (used in reduced-space Newton), NOT the objective function. This is an implementation requirement, not a problem-class restriction.
+
+### Practical Limitations That Make OPEN-M Less Impressive
+
+Beyond the orthonormal basis issue, OPEN-M has restrictive assumptions:
+
+| Limitation | Impact |
+|------------|--------|
+| Uniform bounds (h, L, l) | Must hold for ALL objectives — adversarial f_t can break this |
+| Variation bound v ≤ γ - (2L/h)γ² | Can be essentially zero — only nearly-static problems |
+| Constraint violation O(V_T) | Constraints are violated, not satisfied |
+| Near-optimal initialization | Requires ‖x_0 - x*_0‖ ≤ γ — chicken-and-egg problem |
+| Single Newton step | No recovery if knocked out of γ-neighborhood |
+
+**Bottom line:** The proofs are correct, but the O(V_T + 1) regret bound applies only to slowly-varying, well-conditioned problems where you start near-optimal and tolerate constraint violations.
+
 ### Comparison: OPEN-M vs OIPM-TEC
 
 | Aspect | OPEN-M | OIPM-TEC |
@@ -100,3 +116,4 @@ The paper claims: "Without loss of generality, we let F_t = F̄_t" (orthonormal 
 | Time-varying A_t? | YES | NO (constant A) |
 | Proofs correct? | Yes (given orthonormal F_t) | Contains errors |
 | Orthonormal basis? | Required (hidden) | N/A |
+| Practical applicability? | Narrow (see limitations above) | N/A (proofs invalid) |

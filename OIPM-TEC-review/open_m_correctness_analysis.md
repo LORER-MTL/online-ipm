@@ -137,6 +137,23 @@ where κ(F_t) = σ_max(F_t)/σ_min(F_t) is the condition number of F_t.
 
 **Instead, they misleadingly claim it's "without loss of generality"**, obscuring a fundamental algorithmic requirement.
 
+### 3.5 Clarification: What Is This Orthonormal Basis For?
+
+**Common misconception:** The orthonormal basis F_t is NOT about the objective function.
+
+**What it actually is:** F_t is a basis for the **null space of the constraint matrix A_t**. It's used in the reduced-space Newton method:
+
+```
+Original problem:  min f_t(x)  s.t.  A_t x = b_t
+
+Reduced problem:   min f̃_t(z)  where x = F_t z + x_particular
+                   (unconstrained in z-space, dimension n-p)
+```
+
+Here F_t spans null(A_t), so any x = F_t z + x_p automatically satisfies A_t x = b_t.
+
+**Key point:** This is an **implementation requirement**, not a problem-class restriction. You can solve any problem with OPEN-M, but you MUST compute an orthonormal basis via QR/SVD at each step, rather than using whatever basis falls out of naive null space computation.
+
 ---
 
 ## 4. When Is F_t Naturally Orthonormal?
@@ -237,46 +254,98 @@ is derived assuming Euclidean metric is preserved. With non-orthonormal Z:
 
 ---
 
-## 6. Other Potential Issues
+## 6. Practical Limitations That Make OPEN-M Less Impressive
 
-### 6.1 Implicit Computational Assumption
+Beyond the orthonormal basis issue, OPEN-M has several restrictive assumptions that significantly limit its practical applicability. These limitations mean the O(V_T + 1) regret bound, while correct, applies only to a narrow class of problems.
 
-The paper says "without loss of generality, we let F_t = F̄_t" (orthonormal basis).
+### 6.1 Uniform Bounds Across All Time (Very Restrictive)
 
-**Problem:** Computing an orthonormal basis of null(A_t) at each step requires SVD or QR, which is O(np²). This computational cost is not discussed in the paper.
+The paper requires constants h, L, l that hold **for all t simultaneously**:
 
-### 6.2 Uniformity of Constants
+| Assumption | Requirement | Implication |
+|------------|-------------|-------------|
+| Assumption 1 | `‖∇²f_t(x*_t)^{-1}‖ ≤ 1/h` for all t | Inverse Hessian bounded at ALL optima |
+| Assumption 2 | `‖∇²f_t(x) - ∇²f_t(x*)‖ ≤ L‖x - x*‖` for all t | Lipschitz Hessian for ALL objectives |
+| Assumption 3 | `‖f_t(x) - f_t(x*)‖ ≤ l‖x - x*‖` for all t | Lipschitz function values for ALL objectives |
 
-Assumptions 1-3 require h, L, l to hold for ALL t:
-- Assumption 1: `‖∇²f_t(x*_t)^{-1}‖ ≤ 1/h` for all t
-- Assumption 2: Lipschitz Hessian with constant L for all t
-- Assumption 3: Lipschitz objective with constant l for all t
+**Why this is restrictive:**
+- If an adversary can choose f_t, they could make h → 0 (nearly singular Hessian) or L → ∞ (rapidly varying Hessian)
+- Real-world problems rarely have uniform bounds across all possible objectives
+- The bounds must be known a priori to set algorithm parameters
 
-**Question:** If f_t varies adversarially, can these uniform bounds exist?
+**Example:** Consider tracking a quadratic f_t(x) = ½ x^T H_t x where H_t varies. If eigenvalues of H_t range from 0.01 to 100 across time, then h = 0.01 and the convergence guarantees become very weak.
 
-### 6.3 The γ-Neighborhood Maintenance
+### 6.2 Constraint Violation is O(V_T), Not Zero
 
-The induction requires `‖x_t - x*_t‖ ≤ γ = min{β, h/(2L)}` at each step.
-
-The chain is:
-1. Start with ‖x_0 - x*_0‖ ≤ γ
-2. Newton gives ‖x_1 - x*_0‖ ≤ (2L/h)γ²
-3. Need ‖x_1 - x*_1‖ ≤ ‖x_1 - x*_0‖ + ‖x*_0 - x*_1‖ ≤ (2L/h)γ² + v
-
-For this to stay ≤ γ, condition 2 requires: v ≤ γ - (2L/h)γ²
-
-**This is a tight constraint on how fast optima can move!**
-
-### 6.4 Constraint Violation is O(V_T), Not Zero
-
-For time-varying A_t, OPEN-M achieves:
+OPEN-M achieves:
 ```
-Vio(T) ≤ (ah)/(h - 2Lγ) (V_T + δ)    [equation 18]
+Vio(T) ≤ (ah)/(h - 2Lγ) · (V_T + δ)    [equation 18]
 ```
 
-This is O(V_T), not O(1) or zero. The played decision x_t violates A_t x_t = b_t because x_t was computed before observing A_t.
+**This is NOT zero** — you violate constraints proportional to how much they change.
 
-**This is inherent to the online setting** — you commit before seeing constraints.
+**Why this happens:** In the online setting, you must commit to x_t **before** observing the constraint (A_t, b_t). The decision x_t was computed to satisfy (A_{t-1}, b_{t-1}), so it violates (A_t, b_t) by roughly ‖A_t - A_{t-1}‖ · ‖x_t‖.
+
+**Practical impact:**
+- For safety-critical constraints (e.g., collision avoidance), O(V_T) violation may be unacceptable
+- The bound scales with total variation V_T, which grows with T for non-stationary problems
+- No mechanism to enforce hard constraints
+
+### 6.3 Very Tight Variation Bound
+
+For the induction to work, optimum variation must satisfy:
+```
+v ≤ γ - (2L/h)γ²    where γ = min{β, h/(2L)}
+```
+
+**How tight is this?** Let's compute for typical values:
+- If h = 1, L = 10, β = 0.1: then γ = min{0.1, 0.05} = 0.05
+- Allowed variation: v ≤ 0.05 - 20 · 0.0025 = 0.05 - 0.05 = 0
+
+**The variation bound can be essentially zero!** This means:
+- Optima can only move by a **tiny amount** each step
+- If the problem changes quickly, the algorithm fails to track
+- The "online" setting is restricted to nearly-static problems
+
+### 6.4 Initialization Requires Near-Optimality
+
+OPEN-M requires: `‖x_0 - x*_0‖ ≤ γ`
+
+**The chicken-and-egg problem:**
+- To start OPEN-M, you need x_0 within distance γ of the optimum x*_0
+- Finding such an x_0 essentially requires solving the first optimization problem to high accuracy
+- But if you could do that, why do you need an online algorithm?
+
+**In standard offline optimization:** You can run Newton's method from any starting point (with line search) and eventually converge. OPEN-M doesn't have this luxury — it needs to start close.
+
+### 6.5 Single Newton Step Per Round
+
+OPEN-M takes **one** Newton step per time step. This only works if:
+1. You're already very close to the optimum (quadratic convergence regime)
+2. The optimum doesn't move much between steps
+
+**Contrast with offline Newton:** In standard optimization, you iterate until convergence. OPEN-M can't do this — it must commit after one step.
+
+**Consequence:** If you're ever knocked out of the γ-neighborhood (by a large problem change), you cannot recover. The algorithm has no "catch-up" mechanism.
+
+### 6.6 Summary: When Does OPEN-M Actually Apply?
+
+OPEN-M's O(V_T + 1) regret bound holds only for problems that are:
+
+| Requirement | What It Means |
+|-------------|---------------|
+| Slowly varying | Optima move by at most v ≤ γ - (2L/h)γ² per step |
+| Well-conditioned | Uniform bounds h, L, l exist across all time |
+| Warm-started | Initial point is within γ of first optimum |
+| Constraint-tolerant | O(V_T) constraint violation is acceptable |
+
+**The real limitation isn't the orthonormal basis** — that's just an implementation detail (and cheap to compute). The real limitations are the restrictive assumptions that make OPEN-M applicable only to:
+- Slowly-varying problems
+- Well-conditioned objective sequences
+- Settings where you're already close to optimal
+- Applications tolerant of constraint violations
+
+For rapidly-changing, poorly-conditioned, or safety-critical problems, OPEN-M's guarantees don't apply.
 
 ---
 
@@ -339,9 +408,12 @@ The paper requires ‖A_t‖ ≤ a for all t.
 
 ### Main Concerns
 
-1. **Computational cost** of orthonormalizing F_t at each step not addressed
-2. **Uniform bounds** (h, L, l) across all adversarial f_t may be restrictive
-3. **The v ≤ γ - (2L/h)γ² constraint** is quite restrictive on optimum variation
+1. **Orthonormal basis:** Required but called "WLOG" — misleading, though cheap to compute
+2. **Uniform bounds** (h, L, l) across all adversarial f_t — very restrictive
+3. **Variation bound** v ≤ γ - (2L/h)γ² — can be essentially zero for typical parameters
+4. **Constraint violation** O(V_T) — constraints are violated, not satisfied
+5. **Initialization** — requires starting near-optimal (chicken-and-egg)
+6. **No recovery** — single Newton step means no catch-up if knocked out of neighborhood
 
 ### The Proofs Appear Sound Given
 
@@ -349,6 +421,11 @@ The paper requires ‖A_t‖ ≤ a for all t.
 - Uniform h, L, l exist across all time
 - ‖A_t‖ is bounded
 - Variation v is sufficiently small
+- Initialization is near-optimal
+
+### Bottom Line
+
+**The proofs are correct, but the result is less impressive than it appears.** The O(V_T + 1) regret bound applies only to slowly-varying, well-conditioned problems where you start near-optimal and can tolerate constraint violations. This is a narrow class of problems.
 
 ---
 
