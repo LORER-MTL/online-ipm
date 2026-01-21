@@ -20,7 +20,7 @@ GitHub: https://github.com/LORER-MTL/online-ipm
 - `online_ipm/` - Source code and numerical experiments
   - `experiments/test_orthonormal_basis.py` - Numerical verification of orthonormal basis requirement
 
-## Setup
+## Setup and Commands
 
 ```bash
 # Install dependencies (uses uv package manager)
@@ -30,7 +30,19 @@ uv sync
 pip install -e .
 ```
 
-## Building the LaTeX Document
+### Running Experiments
+
+```bash
+# Run all numerical experiments (inequality extension failures)
+uv run python -m online_ipm.experiments.run_all
+
+# Run individual experiments
+uv run python -m online_ipm.experiments.test_orthonormal_basis
+uv run python -m online_ipm.experiments.test_slack_projection
+uv run python -m online_ipm.experiments.test_barrier_method
+```
+
+### Building the LaTeX Document
 
 ```bash
 cd OIPM-TEC-review

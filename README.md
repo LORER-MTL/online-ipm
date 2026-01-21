@@ -1,39 +1,60 @@
 # Online Interior Point Method
 
-Critical analysis of the paper "Online Interior Point Methods for Time-Varying Equality Constraints"
+Critical analysis of the paper "Online Interior Point Methods for Time-Varying Equality Constraints" (OIPM-TEC).
+
+GitHub: https://github.com/LORER-MTL/online-ipm
 
 ## Repository Structure
 
-### `analysis/` - Current Analysis (Correct)
-Contains the **corrected and verified analysis** of the paper:
-- `PAPER_ANALYSIS.md` - Detailed explanation of the paper's framework and claims
-- `ANALYSIS_SUMMARY.md` - Summary of findings with correct understanding
-- `lp_analysis.py` - Computational verification using linear programs
+- `OIPM-TEC-review/` - Paper review and analysis
+  - `main.tex` / `main.pdf` - LaTeX review document
+  - `proof_errors_analysis.md` - Detailed analysis of proof errors
+  - `slack_variable_analysis.md` - Why slack variable projection fails for inequalities
+  - `barrier_reformulation_analysis.md` - Why barrier reformulation fails for inequalities
+  - `open_m_correctness_analysis.md` - Analysis of OPEN-M paper correctness
+- `papers/` - Reference papers (MOSP.pdf, OIPM_JLL.pdf, OPEN-TEC-JLL.pdf)
+- `online_ipm/` - Source code and numerical experiments
 
-### `experiments/` - Exploratory Code
-Experimental scripts used during the investigation:
-- Various Python scripts exploring different aspects of the problem
-- Generated plots and visualizations
+## Setup
 
-### `old_analysis/` - Previous Analysis (Contains Errors)
-**WARNING:** These files contain fundamental errors based on misunderstanding the paper's problem class.
-They are kept for reference but should not be used.
+```bash
+# Install dependencies (uses uv package manager)
+uv sync
 
-Common errors in old analysis:
-- Incorrectly assumed the paper was about pure linear programs
-- Claimed Lagrangian Hessian is zero (wrong - it's the barrier Hessian)
-- Misidentified the regret bound as O(√(V_T·T)) instead of O(V_T)
+# Alternative: traditional pip
+pip install -e .
+```
 
-### `online-ipm/` - Implementation Code
-Original implementation code and utilities.
+## Running Experiments
+
+```bash
+# Run all numerical experiments
+uv run python -m online_ipm.experiments.run_all
+
+# Run individual experiments
+uv run python -m online_ipm.experiments.test_orthonormal_basis
+uv run python -m online_ipm.experiments.test_slack_projection
+uv run python -m online_ipm.experiments.test_barrier_method
+```
+
+## Building the LaTeX Document
+
+```bash
+cd OIPM-TEC-review
+pdflatex main.tex
+bibtex main
+pdflatex main.tex
+pdflatex main.tex
+```
 
 ## Key Findings
 
-The paper is **mathematically sound** for its stated problem class (self-concordant barrier methods).
+### OIPM-TEC Paper: Contains Critical Errors
 
-Main observations:
-1. **Regret bound is very loose** - dominated by large constant term
-2. **Constraint violation bound may be optimistic** - can be violated in practice with realistic adaptation rates
-3. **Framework is theoretically valid** but practical value is limited
+The OIPM-TEC paper contains **critical errors** in its proofs (Lemmas invHess, nred, yx, and barrier complexity argument). See `OIPM-TEC-review/proof_errors_analysis.md` for details.
 
-See `analysis/ANALYSIS_SUMMARY.md` for details.
+### OPEN-M Paper: Correct but Misleading
+
+The original OPEN-M paper (time-varying equality constraints) is mathematically sound but contains a misleading claim: "Without loss of generality, we let F_t = F̄_t" (orthonormal basis). Orthonormality is a **required assumption**, not optional—bounds inflate by κ(F_t)³ otherwise.
+
+See `OIPM-TEC-review/open_m_correctness_analysis.md` for details.
