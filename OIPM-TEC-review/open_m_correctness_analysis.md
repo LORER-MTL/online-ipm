@@ -298,9 +298,146 @@ For the induction to work, optimum variation must satisfy:
 v ≤ γ - (2L/h)γ²    where γ = min{β, h/(2L)}
 ```
 
-**How tight is this?** Let's compute for typical values:
-- If h = 1, L = 10, β = 0.1: then γ = min{0.1, 0.05} = 0.05
-- Allowed variation: v ≤ 0.05 - 20 · 0.0025 = 0.05 - 0.05 = 0
+#### Case Analysis: The Two Cases for γ
+
+**Case 1: γ = h/(2L)** (when β ≥ h/(2L))
+
+The variation bound becomes:
+```
+v ≤ h/(2L) - (2L/h)(h/(2L))² = h/(2L) - h/(2L) = 0
+```
+
+**This is completely useless** — no variation is allowed at all.
+
+**Case 2: γ = β** (when β < h/(2L))
+
+This is the only non-trivial case. The bound becomes:
+```
+v ≤ β(1 - 2Lβ/h)
+```
+
+For this to allow positive variation, we need β < h/(2L).
+
+#### Maximum Allowable Variation
+
+To find the maximum variation, optimize over β ∈ (0, h/(2L)):
+```
+d/dβ [β - (2L/h)β²] = 1 - (4L/h)β = 0  →  β* = h/(4L)
+```
+
+At the optimal β* = h/(4L):
+```
+v_max = h/(4L) - (2L/h)(h/(4L))² = h/(4L) - h/(8L) = h/(8L)
+```
+
+**The absolute maximum variation bound is h/(8L)**, achieved when β = h/(4L).
+
+| Choice of β | γ | Max variation v̄ |
+|-------------|---|------------------|
+| β ≥ h/(2L) | h/(2L) | 0 (useless) |
+| β = h/(4L) (optimal) | h/(4L) | h/(8L) |
+| β → 0 | β | → 0 |
+
+#### Concrete Examples with Realistic Parameters
+
+**Example 1: Log-barrier near the boundary**
+
+For the log barrier φ(x) = -log(x) on x > 0, working in region x ∈ [0.01, 1]:
+- ∇²φ(x) = 1/x², so h ≈ 1 (min Hessian at x=1)
+- Third derivative is -2/x³, so L ≈ 2/0.01³ = 2,000,000
+
+Maximum variation:
+```
+v_max = h/(8L) = 1/16,000,000 ≈ 6 × 10⁻⁸
+```
+
+Over T = 1000 time steps, total variation V_T must be less than 0.00006.
+
+**Example 2: Ill-conditioned logistic regression**
+
+For regularized logistic regression with weak regularization λ = 0.001 and data with large feature magnitudes:
+- h ≈ λ = 0.001 (strong convexity from regularization)
+- L can easily be 1000+ (depends on data)
+
+Maximum variation:
+```
+v_max = 0.001/(8 × 1000) = 1.25 × 10⁻⁷
+```
+
+**Example 3: Portfolio optimization with log utility**
+
+For log utility U(w) = log(w) near low-wealth states:
+- Near bankruptcy (small w), Hessian = 1/w² blows up
+- h/L ratio becomes tiny, making v_max negligible
+
+#### When Is the Bound NOT Restrictive?
+
+The setting is reasonable when:
+
+| Condition | Example | h/L |
+|-----------|---------|-----|
+| Quadratic objectives | Least squares, QP | ∞ (L=0, Hessian constant) |
+| Well-conditioned, smooth | Strongly regularized problems far from boundaries | O(1) |
+| Self-concordant with bounded domain | Barrier methods on bounded sets away from boundary | Depends on geometry |
+
+**For pure quadratics** f_t(x) = (1/2)xᵀQ_t x + c_t^T x:
+- Hessian ∇²f_t = Q_t is constant **in space** (even if Q_t varies across time!)
+- L = 0 means ‖∇²f_t(x) - ∇²f_t(y)‖ = 0 for all x, y at fixed t
+- Newton converges in exactly ONE step for any quadratic
+- The bound h/(8L) → ∞, so any variation is allowed
+
+**Critical insight:** L = 0 applies even when Q_t changes arbitrarily between time steps!
+
+This is the "interesting" case for OPEN-M: **time-varying quadratic programs** where L = 0.
+
+#### Numerical Verification (test_quadratic_variation.py)
+
+We verified empirically that OPEN-M tracks exactly for quadratics:
+
+| Test | Avg Variation | Max Error |
+|------|---------------|-----------|
+| Constant Q, vary c_t (σ=10) | 19.04 | 2.08e-14 |
+| **Vary Q_t AND c_t** | 10.78 | 6.36e-14 |
+| Non-quadratic (log barrier) | 1.25 | **2.02** |
+
+Even with **average Hessian change ‖Q_t - Q_{t-1}‖_F = 47** per step, OPEN-M achieves machine-precision tracking! Meanwhile, the non-quadratic case (with much smaller variation) has significant error.
+
+Run: `uv run python -m online_ipm.experiments.test_quadratic_variation`
+
+#### Time-Varying A_t: Works, But With Hidden Condition Number Requirement
+
+We also verified OPEN-M with time-varying constraint matrices A_t (Test 6):
+
+| What Varies | Avg ‖A_t - A_{t-1}‖_F | Max Tracking Error |
+|-------------|----------------------|-------------------|
+| Q_t, c_t, A_t, b_t (all!) | 7.62 | 3.48e-14 |
+
+**OPEN-M tracks exactly** even when the constraint matrix changes completely each step!
+
+However, **Test 7a reveals a critical numerical issue** with ill-conditioned A_t:
+
+| cond(A_t) | Projection Error | Newton Error |
+|-----------|------------------|--------------|
+| 10⁰ | 10⁻¹⁶ | 10⁻¹⁵ |
+| 10⁴ | 10⁻⁹ | 10⁻⁵ |
+| **10⁶** | **10⁻⁵** | **20** |
+| 10⁸ | 10⁻¹ | 10⁸ |
+
+**Root cause:** The projection formula x_proj = x + Aᵀ(AAᵀ)⁻¹(b - Ax) requires inverting AAᵀ, which has condition number κ(A)²!
+
+**Hidden assumption in OPEN-M:**
+- Paper's Assumption 3 requires ‖A_t‖ ≤ a (bounds σ_max)
+- But **nothing bounds σ_min(A_t)** (smallest singular value)
+- For numerical stability, need **bounded condition number**: κ(A_t) ≤ κ_max
+
+Run: `uv run python -m online_ipm.experiments.test_ill_conditioned_A`
+
+#### The Tension in Parameter Choice
+
+There's a fundamental tension:
+- **Larger β** → larger initialization neighborhood, but smaller variation budget
+- **Smaller β** → smaller initialization neighborhood, but also smaller variation budget
+- **Optimal β = h/(4L)** balances these, but still gives tiny v_max for ill-conditioned problems
 
 **The variation bound can be essentially zero!** This means:
 - Optima can only move by a **tiny amount** each step
@@ -334,7 +471,7 @@ OPEN-M's O(V_T + 1) regret bound holds only for problems that are:
 
 | Requirement | What It Means |
 |-------------|---------------|
-| Slowly varying | Optima move by at most v ≤ γ - (2L/h)γ² per step |
+| Slowly varying | Optima move by at most v ≤ h/(8L) per step (at best) |
 | Well-conditioned | Uniform bounds h, L, l exist across all time |
 | Warm-started | Initial point is within γ of first optimum |
 | Constraint-tolerant | O(V_T) constraint violation is acceptable |
@@ -346,6 +483,57 @@ OPEN-M's O(V_T + 1) regret bound holds only for problems that are:
 - Applications tolerant of constraint violations
 
 For rapidly-changing, poorly-conditioned, or safety-critical problems, OPEN-M's guarantees don't apply.
+
+### 6.7 Honest Assessment: Is OPEN-M Research Useful?
+
+#### What OPEN-M Actually Handles Well
+
+1. **Time-varying quadratic programs** (L = 0, Hessian constant)
+   - The bound h/(8L) → ∞, so any variation is allowed
+   - This is the genuinely interesting application
+
+2. **Problems where you're always far from boundaries**
+   - Avoids the Hessian blowup issues
+   - L stays moderate
+
+3. **Slowly drifting, well-conditioned problems**
+   - When h/L is reasonably large
+   - When the environment changes gradually
+
+#### What OPEN-M Doesn't Handle
+
+1. **Anything with log-barriers** — Hessian Lipschitz constant explodes near boundaries
+
+2. **Ill-conditioned problems** — h/L can be tiny, making v_max negligible
+
+3. **Realistic online learning** — environments can change significantly between rounds
+
+4. **Safety-critical applications** — O(V_T) constraint violation is unacceptable
+
+#### The Broader Perspective
+
+**The research isn't "completely useless," but it's:**
+
+1. **Much narrower than advertised** — The O(V_T + 1) regret sounds impressive until you realize V_T must often be tiny (≤ h/(8L) per step)
+
+2. **Most valuable for quadratics** — Where L = 0 and the theory applies broadly
+
+3. **Theoretically interesting, practically limited** — Understanding single-Newton-step dynamics has value, but practical applicability is narrow
+
+4. **Simpler alternatives exist** — For the narrow class of problems where OPEN-M applies, simpler approaches (re-solve from warm start, gradient descent) would likely work comparably well
+
+#### The Honest Summary
+
+OPEN-M is a **correct but narrow result** for nearly-static, well-conditioned, quadratic-ish problems. The paper's framing suggests a general "online convex optimization" algorithm, but the assumptions restrict it to a class where:
+
+1. You already start near-optimal (chicken-and-egg)
+2. The problem barely changes (v ≤ h/(8L))
+3. The objective is extremely well-behaved (small L)
+4. You can tolerate constraint violations
+
+**For such problems, the question is:** Does OPEN-M provide significant advantages over simply re-solving from a warm start? The single-Newton-step guarantee is elegant, but the restrictive assumptions mean the "online" setting is barely distinguishable from "slowly drifting offline optimization."
+
+**The OIPM-TEC extension (inequalities) is even worse** — they tried to extend to a harder setting and the proofs don't even work.
 
 ---
 
@@ -410,10 +598,12 @@ The paper requires ‖A_t‖ ≤ a for all t.
 
 1. **Orthonormal basis:** Required but called "WLOG" — misleading, though cheap to compute
 2. **Uniform bounds** (h, L, l) across all adversarial f_t — very restrictive
-3. **Variation bound** v ≤ γ - (2L/h)γ² — can be essentially zero for typical parameters
+3. **Variation bound** v ≤ h/(8L) at best — can be essentially zero for ill-conditioned problems (log-barriers: ~10⁻⁸, logistic regression: ~10⁻⁷)
 4. **Constraint violation** O(V_T) — constraints are violated, not satisfied
 5. **Initialization** — requires starting near-optimal (chicken-and-egg)
 6. **No recovery** — single Newton step means no catch-up if knocked out of neighborhood
+7. **Only truly useful for quadratics** — when L = 0, any variation is allowed; otherwise the bounds are crippling
+8. **Condition number of A_t** — paper only bounds ‖A_t‖ (σ_max), but numerical stability requires bounded κ(A_t) = σ_max/σ_min; projection error scales as κ(A_t)² (see test_ill_conditioned_A.py)
 
 ### The Proofs Appear Sound Given
 
@@ -425,7 +615,11 @@ The paper requires ‖A_t‖ ≤ a for all t.
 
 ### Bottom Line
 
-**The proofs are correct, but the result is less impressive than it appears.** The O(V_T + 1) regret bound applies only to slowly-varying, well-conditioned problems where you start near-optimal and can tolerate constraint violations. This is a narrow class of problems.
+**The proofs are correct, but the result is less impressive than it appears.** The O(V_T + 1) regret bound applies only to slowly-varying, well-conditioned problems where you start near-optimal and can tolerate constraint violations.
+
+**The variation bound is particularly damning:** At best, v ≤ h/(8L) per step. For any problem with log-barriers or ill-conditioning, this is essentially zero. The "online" setting effectively becomes "static optimization with infinitesimal perturbations."
+
+**The only genuinely useful case is time-varying quadratic programs** where L = 0. For everything else, the restrictive assumptions make OPEN-M no more practical than simply re-solving from a warm start.
 
 ---
 

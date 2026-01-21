@@ -10,15 +10,9 @@ GitHub: https://github.com/LORER-MTL/online-ipm
 
 ## Repository Structure
 
-- `OIPM-TEC-review/` - Paper review and analysis
-  - `main.tex` / `main.pdf` - LaTeX review document
-  - `proof_errors_analysis.md` - Detailed analysis of proof errors (Lemmas invHess, nred, yx, and barrier complexity argument)
-  - `slack_variable_analysis.md` - Analysis of why slack variable projection fails for inequalities
-  - `barrier_reformulation_analysis.md` - Analysis of why OPEN-M barrier reformulation fails for inequalities
-  - `open_m_correctness_analysis.md` - Analysis of OPEN-M paper correctness (time-varying A_t, orthonormal basis requirement)
+- `OIPM-TEC-review/` - Paper review, analysis documents, and LaTeX source
 - `papers/` - Reference papers (MOSP.pdf, OIPM_JLL.pdf, OPEN-TEC-JLL.pdf)
 - `online_ipm/` - Source code and numerical experiments
-  - `experiments/test_orthonormal_basis.py` - Numerical verification of orthonormal basis requirement
 
 ## Setup and Commands
 
@@ -40,6 +34,8 @@ uv run python -m online_ipm.experiments.run_all
 uv run python -m online_ipm.experiments.test_orthonormal_basis
 uv run python -m online_ipm.experiments.test_slack_projection
 uv run python -m online_ipm.experiments.test_barrier_method
+uv run python -m online_ipm.experiments.test_feasible_projection
+uv run python -m online_ipm.experiments.test_quadratic_variation
 ```
 
 ### Building the LaTeX Document
@@ -51,6 +47,25 @@ bibtex main
 pdflatex main.tex
 pdflatex main.tex
 ```
+
+## Code Architecture
+
+The `online_ipm/` package implements numerical experiments demonstrating why naive inequality extensions fail:
+
+**Core modules:**
+- `problems.py` - LP instance definitions (`OnlineLPInstance`, `OnlineLPProblem`) and test problem generators
+- `open_m.py` - Shared utilities: `project_onto_equality()`, `build_kkt_matrix()`, `solve_kkt_system()`
+
+**Algorithm implementations** (all extend `OnlineAlgorithm` base class in `algorithms/base.py`):
+- `algorithms/slack_projection.py` - Demonstrates failure of slack variable approach (clipping destroys equality constraints)
+- `algorithms/barrier_method.py` - Demonstrates failure of barrier reformulation (full Newton exits feasible region)
+- `algorithms/feasible_projection.py` - Feasible space projection algorithm
+
+**Experiments** in `experiments/`:
+- `run_all.py` - Runs all experiments and generates plots to `online_ipm/results/`
+- Individual test files validate specific failure modes
+
+**Key pattern:** All algorithms implement `initialize()`, `step()`, and `get_current_x()`. The `step()` method returns `StepMetrics` with regret, constraint violations, and algorithm-specific metrics in `extra`.
 
 ## Paper Errors Summary
 
